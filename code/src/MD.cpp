@@ -471,8 +471,8 @@ double Potential() {
                 }   
                 rnorm=sqrt(r2);
                 quot=sigma/rnorm;
-                term1 = pow(quot,12.);
-                term2 = pow(quot,6.);
+                term1 = quot*quot*quot*quot*quot*quot*quot*quot*quot*quot*quot*quot;
+                term2 = quot*quot*quot*quot*quot*quot;
                 
                 Pot += 4*epsilon*(term1 - term2);
                 

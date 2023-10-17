@@ -89,9 +89,10 @@ int main()
     double dt, Vol, Temp, Press, Pavg, Tavg, rho;
     double VolFac, TempFac, PressFac, timefac;
     double KE, PE, mvs, gc, Z;
-    char trash[10000], prefix[1000], tfn[1000], ofn[1000], afn[1000];
-    FILE *infp, *tfp, *ofp, *afp;
-    
+    char prefix[1000], tfn[1000], ofn[1000], afn[1000];
+    // char trash[10000],
+    FILE *tfp, *ofp, *afp;
+    //FILE *infp
     
     printf("\n  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
     printf("                  WELCOME TO WILLY P CHEM MD!\n");
@@ -375,14 +376,13 @@ void initialize() {
     //  index for number of particles assigned positions
     p = 0;
     //  initialize positions
-    for (i=0; i<n; i++) {
-        for (j=0; j<n; j++) {
-            for (k=0; k<n; k++) {
-                if (p<N) {
-                    
-                    r[p][0] = (i + 0.5)*pos;
-                    r[p][1] = (j + 0.5)*pos;
-                    r[p][2] = (k + 0.5)*pos;
+    for (i = 0; i < n; i++) {
+        for (j = 0; j < n ; j++) {
+            for (k = 0; k < n ; k++) {
+                if (p < N){
+                    r[p][0] = (i + 0.5) * pos;
+                    r[p][1] = (j + 0.5) * pos;
+                    r[p][2] = (k + 0.5) * pos;
                 }
                 p++;
             }
@@ -433,65 +433,48 @@ double MeanSquaredVelocity() {
 }
 
 //  Function to calculate the kinetic energy of the system
-double Kinetic() { //Write Function here!  
-    
-    double v2, kin;
-    
-    kin =0.;
-    for (int i=0; i<N; i++) {
+    double Kinetic() { //Write Function here!  
         
-        v2 = 0.;
-        for (int j=0; j<3; j++) {
+        double v2, kin, half_m ;
+        half_m = 0.5 * m;
+        kin =0.;
+        for (int i=0; i<N; i++) {
             
-            v2 += v[i][j]*v[i][j];
+            v2 = 0;
+                
+            v2 = v[i][0]*v[i][0] + v[i][1]*v[i][1] + v[i][2]*v[i][2];
+            kin += half_m*v2;
             
         }
-        kin += m*v2/2.;
+        
+        //printf("  Total Kinetic Energy is %f\n",N*mvs*m/2.);
+        return kin;
         
     }
-    
-    //printf("  Total Kinetic Energy is %f\n",N*mvs*m/2.);
-    return kin;
-    
-}
 
 
 // Function to calculate the potential energy of the system
 double Potential() {
-    double quot, r2, rnorm, term1, term2, Pot, mult;
-    int i, j, k;
-    double *aux = (double *) malloc(N*N*sizeof(double));
-
-    for (i=0; i<N; i++) {
-        for (j=0; j<N; j++){
-            aux[i*N+j]=0;
-        }
-    }
+    double quot, r2, term1, term2, Pot, mult1,mult2,mult3;
+    int i, j;
 
     Pot=0.;
     for (i=0; i<N; i++) {
         for (j=i+1; j<N; j++) {
                 r2=0.;
-                for (k=0; k<3; k++) {
-                    mult= (r[i][k]-r[j][k]);
-                    r2 += mult*mult;
-                }       
-                rnorm=sqrt(r2);
-                quot=sigma/rnorm;
-                term1 = pow(quot,12.);
-                term2 = pow(quot,6.);        
-                aux[i*N + j]= 4*epsilon*(term1 - term2);
+                mult1= (r[i][0]-r[j][0]);
+                mult2= (r[i][1]-r[j][1]);
+                mult3= (r[i][2]-r[j][2]);
+                
+                r2 = mult1 * mult1 + mult2 * mult2 + mult3 * mult3;
+                
+                quot=sigma/r2;
+                term2 = quot*quot*quot;       
+                term1 = term2*term2;
+                Pot+= 4*epsilon*(term1 - term2);
         }
     }
 
-    for (i=0; i<N; i++) {
-        for (j=0; j<N; j++){
-            Pot+=aux[i*N+j];
-        }
-    }
-
-    free(aux);
-    
     return 2*Pot;
 }
 
@@ -503,41 +486,46 @@ double Potential() {
 //   accelleration of each atom. 
 void computeAccelerations() {
     int i, j, k;
-    double f, rSqd;
+    double f, rSqd,rSqdInv6, rSqdInv12;
     double rij[3]; // position of i relative to j
     
     
     for (i = 0; i < N; i++) {  // set all accelerations to zero
-        for (k = 0; k < 3; k++) {
-            a[i][k] = 0;
-        }
+            a[i][0] = 0;
+            a[i][1] = 0;
+            a[i][2] = 0;
     }
+    
     for (i = 0; i < N-1; i++) {   // loop over all distinct pairs i,j
         for (j = i+1; j < N; j++) {
             // initialize r^2 to zero
             rSqd = 0;
-            
-            for (k = 0; k < 3; k++) {
-                //  component-by-componenent position of i relative to j
-                rij[k] = r[i][k] - r[j][k];
+            //  component-by-componenent position of i relative to j
+            rij[0] = r[i][0] - r[j][0];
+            rij[1] = r[i][1] - r[j][1];
+            rij[2] = r[i][2] - r[j][2];
                 //  sum of squares of the components
-                rSqd += rij[k] * rij[k];
-            }
+            rSqd = rij[0] * rij[0] + rij[1] * rij[1] + rij[2] * rij[2] ;
+            
             
             //  From derivative of Lennard-Jones with sigma and epsilon set equal to 1 in natural units!
-            f = 24 * (2 * pow(rSqd, -7) - pow(rSqd, -4));
+            rSqdInv6 = 1.0 / (rSqd * rSqd * rSqd * rSqd);
+            rSqdInv12 = rSqdInv6 * rSqdInv6 * rSqd;
+            f = 24 * (2 * rSqdInv12  - rSqdInv6);
+            
             for (k = 0; k < 3; k++) {
                 //  from F = ma, where m = 1 in natural units!
                 a[i][k] += rij[k] * f;
                 a[j][k] -= rij[k] * f;
             }
+
         }
     }
 }
 
 // returns sum of dv/dt*m/A (aka Pressure) from elastic collisions with walls
 double VelocityVerlet(double dt, int iter, FILE *fp) {
-    int i, j, k;
+    int i, j;
     
     double psum = 0.;
     
@@ -637,11 +625,9 @@ void initializeVelocities() {
     double vSqdSum, lambda;
     vSqdSum=0.;
     for (i=0; i<N; i++) {
-        for (j=0; j<3; j++) {
             
-            vSqdSum += v[i][j]*v[i][j];
-            
-        }
+            vSqdSum += v[i][0]*v[i][0] +  v[i][1]*v[i][1] + v[i][2]*v[i][2];
+
     }
     
     lambda = sqrt( 3*(N-1)*Tinit/vSqdSum);
